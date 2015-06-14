@@ -10,8 +10,9 @@ class Tank{
     tankBody : Phaser.Sprite;
     turret : Phaser.Sprite;
 
-    maxSpeed : number;
-    currSpeed : number = 0;
+    maxSpeed : number=0;
+    currSpeed : number=0;
+    desiredSpeed : number=0;
     acceleration : number;
     brakeMultiplier : number = 2;
     reloadTime : number;

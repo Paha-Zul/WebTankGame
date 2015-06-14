@@ -2,15 +2,34 @@
 ///<reference path="MyMath.ts"/>
 
 class CPUTankController{
+    targetSpeed:number;
+    targetLastPos:Phaser.Point = null;
+    disToTarget:number;
+
     constructor(public tank : Tank){
 
     }
 
     update(delta:number){
+
+        this.disToTarget = this.getDisToTarget(this.tank.leader.tankBody.position);
+        this.getTargetSpeed(delta, this.tank.leader.tankBody.position);
         this.tankCPUMove(this.tank.leader.tankBody.position, delta);
         this.tankCPURotate(this.tank.leader.tankBody.position);
         this.tankCPUAimTurret(this.tank.leader);
     }
+
+    getDisToTarget = (targetPoint:Phaser.Point):number => {
+        return this.tank.tankBody.position.distance(targetPoint);
+    };
+
+    getTargetSpeed = (delta:number, targetPoint:Phaser.Point) => {
+        if(this.targetLastPos === null) this.targetLastPos = targetPoint;
+        else {
+            this.targetSpeed = targetPoint.distance(this.targetLastPos);
+            this.targetLastPos = new Phaser.Point(targetPoint.x, targetPoint.y);
+        }
+    };
 
     tankCPUMove = (target:Phaser.Point, delta:number) => {
         var angleToTarget = Math.atan2(target.y - this.tank.tankBody.y, target.x - this.tank.tankBody.x)*180/Math.PI;
@@ -27,18 +46,36 @@ class CPUTankController{
 
         var timeToStop = Math.abs(this.tank.currSpeed/(this.tank.acceleration*this.tank.brakeMultiplier*delta));
         var dis = target.distance(this.tank.tankBody.position);
-        console.log("dis: "+dis+", timeToStop: "+timeToStop+", currSpeed: "+this.tank.currSpeed+", accel+mult: "+(this.tank.acceleration*this.tank.brakeMultiplier));
-        if(timeToStop*this.tank.currSpeed < dis) {
-            //If we are stopping, give us a good bonus for brakes
-            if (this.tank.currSpeed > 0 && scale < 0) {
+
+        //If we are within range of stopping, match the target speed.
+        if(timeToStop*this.tank.currSpeed < dis)
+            this.tank.desiredSpeed = this.targetSpeed;
+        //If we are outside of stopping range, accelerate.
+        else
+            this.tank.desiredSpeed = this.tank.maxSpeed;
+
+        console.log("desired: "+this.tank.desiredSpeed+", targetSPeed: "+this.targetSpeed);
+
+        //Negative
+        if(this.tank.desiredSpeed <= 0){
+            //We are reversing faster than we need to.
+            if(this.tank.currSpeed < this.tank.desiredSpeed)
+                //Hit the brakes.
                 this.tank.currSpeed += this.tank.acceleration*this.tank.brakeMultiplier*scale;
-                //Otherwise, accelerate normally.
-            } else
-                this.tank.currSpeed += this.tank.acceleration * scale;
+            //We need to reverse faster
+            else
+                //Accelerate in reverse
+                this.tank.currSpeed -= this.tank.acceleration
+        //Positive
         }else{
-            console.log("Stopping");
-            if(this.tank.currSpeed > 0) this.tank.currSpeed -= this.tank.acceleration*this.tank.brakeMultiplier;
-            else this.tank.currSpeed += this.tank.acceleration*this.tank.brakeMultiplier;
+            //We are driving faster than we need to.
+            if(this.tank.currSpeed > this.tank.desiredSpeed)
+                //Hit the brakes.
+                this.tank.currSpeed += this.tank.acceleration*this.tank.brakeMultiplier*scale;
+            //We are driving slower than we should.
+            else
+                //Accelerate forward
+                this.tank.currSpeed -= this.tank.acceleration
         }
 
         //console.log("angleToTarget: "+angleToTarget+", myAngle: "+myAngle+", offset: "+offset+", scale: "+scale+" currSpeed: "+this.currSpeed);
